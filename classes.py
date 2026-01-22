@@ -361,6 +361,26 @@ class Tree():
         branch = node.branch
         assumptions = self.branch_assumptions[branch]
         return self.hypotheses + assumptions
+    
+    def close_branch(self, branch):
+        if branch == '0':
+            self.end_deduction()
+
+        self.active_branches.remove(branch)
+        sub_branch = branch[:-1]
+        if not self.has_upper_branches(sub_branch):
+            self.close_branch(sub_branch)        
+
+    def has_upper_branches(self, branch):
+        # Checks that there are open branches with the branch as prefix, not including itself
+        n = len(branch)
+        sprouts = [b for b in self.active_branches if len(b) > n and b[:n] == branch]
+        
+        return len(sprouts) > 0
+
+
+    def end_deduction(self):
+        print('Parabéns! Você provou o teorema!')
 
 tree = Tree('p&q')
 root = tree.root
