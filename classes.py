@@ -119,7 +119,7 @@ class Formula():
         return self.operator == other.operator and self.subformulas == other.subformulas
 
 class FormulaNode():
-    def __init__(self, formula, tree, parent = None, child = None):
+    def __init__(self, formula, tree, branch, parent = None, child = None):
         if type(formula) is str:
             formula = Formula(formula)
         self.formula = formula
@@ -134,6 +134,7 @@ class FormulaNode():
 
         # The tree all nodes belong to
         self.tree = tree
+        self.branch = branch
 
     def __str__(self):
         return str(self.formula)
@@ -142,7 +143,7 @@ class FormulaNode():
         if not self.rule_fits_operation(rule):
             return
         
-        rule_node = RuleNode(rule, child=self, tree=self.tree)
+        rule_node = RuleNode(rule, child=self, tree=self.tree, branch=self.branch,)
         self.parent = rule_node
         rule_node.expand()
         
@@ -176,7 +177,7 @@ class FormulaNode():
         pass
 
 class RuleNode():
-    def __init__(self, rule, tree, parents = [], child = None):
+    def __init__(self, rule, tree, branch, parents = [], child = None):
         self.rule = rule # The rule being applied
 
         # Parents and child are all formulas.
@@ -186,6 +187,7 @@ class RuleNode():
         self.parents = parents
 
         self.tree = tree
+        self.branch = branch
 
     def expand(self):
         # Rules which can automatically deduce the parent(s), without specification
@@ -204,19 +206,30 @@ class RuleNode():
         if self.rule == NOTNOT:
             self.double_not()
 
+        if self.rule == TOI:
+            self.imply_intro()
+
+        if self.rule == NOTI:
+            self.not_intro()
+
         # Rules which require further input
 
     def and_inclusion(self):
         left = self.child.subformulas[0]
         right = self.child.subformulas[1]
 
-        self.parents = [FormulaNode(left, self.tree), FormulaNode(right, self.tree)]
+        self.parents = [FormulaNode(left, self.tree, self.branch+'0'), FormulaNode(right, self.tree, self.branch+'1')]
+        self.tree.add_branch(self.branch+'0')
+        self.tree.add_branch(self.branch+'1')
 
     def false_elim(self):
-        self.parents = [FormulaNode(lfalse, self.tree)]
+        self.parents = [FormulaNode(lfalse, self.tree, self.branch)]
 
     def not_intro(self):
-        pass
+        pre = self.child.subformulas[0]
+
+        self.parents = [FormulaNode(lfalse, self.tree, self.branch+'0')]
+        self.tree.add_branch(self.branch+'0', pre)
 
     def double_not(self):
         formula = str(self.child)
@@ -224,31 +237,56 @@ class RuleNode():
         if self.child.operator is not None:
             formula = f'({formula})'
 
-        self.parents = [FormulaNode(f'!!{formula}', self.tree)]
+        self.parents = [FormulaNode(f'!!{formula}', self.tree, self.branch)]
 
     def imply_intro(self):
-        pass
+        pre = self.child.subformulas[0]
+        cons = self.child.subformulas[1]
+
+        self.parents = [FormulaNode(cons, self.tree, self.branch+'0')]
+        self.tree.add_branch(self.branch+'0', pre)
 
     def or_intro_left(self):
         left = self.child.subformulas[0]
-        self.parents = [FormulaNode(left, self.tree)]
+        self.parents = [FormulaNode(left, self.tree, self.branch)]
 
     def or_intro_right(self):
         right = self.child.subformulas[1]
-        self.parents = [FormulaNode(right, self.tree)]
+        self.parents = [FormulaNode(right, self.tree, self.branch)]
 
 class Tree():
     def __init__(self, goal, hypotheses = []):
-        self.root = FormulaNode(goal, tree=self)
+        self.root = FormulaNode(goal, tree=self, branch='0')
         self.hypotheses = [Formula(h) for h in hypotheses]
+        
+        # Branches
+        self.branches = {'0'}
+        self.active_branches = {'0'}
+        self.branch_assumptions = {'0':[]}
 
-tree = Tree('p->q', ['!p'])
+    def add_branch(self, new_branch, assumption = None):
+        self.branches.add(new_branch)
+        self.active_branches.add(new_branch)
+
+        old_branch = new_branch[:-1]
+        self.branch_assumptions[new_branch] = [x for x in self.branch_assumptions[old_branch]]
+        if assumption is not None:
+            self.branch_assumptions[new_branch].append(assumption)
+
+    def get_hypotheses(self, node):
+        branch = node.branch
+        assumptions = self.branch_assumptions[branch]
+        return self.hypotheses + assumptions
+
+tree = Tree('!p', ['!t'])
 root = tree.root
 print(root)
 
-# root.expand(NOTNOT)
-# for p in root.parent.parents:
-#     print(p)
+root.expand(NOTI)
+for p in root.parent.parents:
+    print(p, p.branch)
+    print(tree.get_hypotheses(p))
+print(tree.get_hypotheses(root))
 
 # for h in tree.hypotheses:
 #     print(h)
