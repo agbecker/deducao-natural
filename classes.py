@@ -16,6 +16,21 @@ IMPLY = 3
 logical_symbols = {lnot:NOT, land:AND, lor:OR, lto:IMPLY}
 logical_symbols_lookup = {NOT:lnot, AND:land, OR:lor, IMPLY:lto, None:'None'}
 
+# Rules
+ANDE1 = 0
+ANDE2 = 1
+ANDI = 2
+ORI1 = 3
+ORI2 = 4
+ORE = 5
+TOI = 6
+TOE = 7
+FE = 8
+FI = 9
+NOTI = 10
+NOTNOT = 11
+EM = 12
+
 class Formula():
     def __init__(self, literal):
         self.parse_literal(literal)
@@ -72,10 +87,20 @@ class Formula():
         ret += f'\nOperator: {logical_symbols_lookup[self.operator]}'
         ret += f'\nSubformulas: {self.subformulas}\n'
         return ret
+    
+    def __eq__(self, other):
+        if type(other) is not Formula:
+            return False
+        
+        return self.operator == other.operator and self.subformulas == other.subformulas
 
 class FormulaNode():
     def __init__(self, formula, parent = None, child = None):
+        if type(formula) is str:
+            formula = Formula(formula)
         self.formula = formula
+        self.operator = formula.operator
+        self.subformulas = formula.subformulas
 
         # Parent and child are rules.
         # A formula with no parent is an unresolved branch.
@@ -83,24 +108,70 @@ class FormulaNode():
         self.parent = parent
         self.child = child
 
+    def __str__(self):
+        return str(self.formula)
+    
+    def expand(self, rule):
+        if not self.rule_fits_operation(rule):
+            return
+        
+        rule_node = RuleNode(rule, child=self)
+        self.parent = rule_node
+        rule_node.expand()
+        
+    def rule_fits_operation(self, rule):
+        operator = self.formula.operator
+
+        # And só é gerado pela inclusão
+        if operator == AND:
+            return rule == ANDI
+        
+        # Or só é gerado pelas inclusões
+        if operator == OR:
+            return rule in (ORI1, ORI2) or rule == EM and self.check_excluded_middle(self.formula)
+        
+        # Implicação só é gerada pela inclusão
+        if operator == IMPLY:
+            return rule == TOI
+        
+        # Negação só é gerada pela inclusão
+        if operator == NOT:
+            return rule == NOTI
+        
+        # As seguintes regras podem gerar fórmulas em qualquer formato:
+        # Exclusões do and, exclusão do or, exclusão do false, exclusão da implicação, exclusão da dupla negação
+        return operator is None and rule in (ANDE1, ANDE2, ORE, FE, TOE, NOTNOT)
+
+    def check_excluded_middle(self, formula):
+        pass
+
 class RuleNode():
-    def __init__(self, type, parents = [], child = None):
-        self.type = type
+    def __init__(self, rule, parents = [], child = None):
+        self.rule = rule # The rule being applied
 
         # Parents and child are all formulas.
         # The number of parents and their respective types are determined by the rule type
         # All rules have exactly one child
-        pass
+        self.child = child
+        self.parents = parents
+
+    def expand(self):
+        if self.rule == ANDI:
+            self.and_inclusion()
+
+    def and_inclusion(self):
+        left = self.child.subformulas[0]
+        right = self.child.subformulas[1]
+
+        self.parents = [FormulaNode(left), FormulaNode(right)]
 
 
-a = Formula('((p&q->not q||r))')
-print(repr(a))
+root = FormulaNode('((p&q))')
+print(root)
 
-b = Formula(a.subformulas[1])
-print(repr(b))
-
-c = Formula(b.subformulas[1])
-print(repr(c))
+root.expand(ANDI)
+for p in root.parent.parents:
+    print(p)
 
 #### Pensamentos
 # Se tiver uma disjunção, clicar VI1 ou VI2 resolve automaticamente, botando como pai o lado esquerdo ou direito
