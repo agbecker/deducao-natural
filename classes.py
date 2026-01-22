@@ -25,7 +25,7 @@ ORI2 = 4
 ORE = 5
 TOI = 6
 TOE = 7
-FE = 8
+FE = NOTE = 8
 FI = 9
 NOTI = 10
 NOTNOT = 11
@@ -58,7 +58,7 @@ class Formula():
                 depth += 1
             elif c == ')':
                 depth -= 1
-            elif c in logical_symbols:
+            elif depth == 0 and c in logical_symbols:
                 pre = logical_symbols[c]
                 if op is None or op < pre:
                     op = pre
@@ -95,7 +95,7 @@ class Formula():
         return self.operator == other.operator and self.subformulas == other.subformulas
 
 class FormulaNode():
-    def __init__(self, formula, parent = None, child = None):
+    def __init__(self, formula, tree, parent = None, child = None):
         if type(formula) is str:
             formula = Formula(formula)
         self.formula = formula
@@ -108,6 +108,9 @@ class FormulaNode():
         self.parent = parent
         self.child = child
 
+        # The tree all nodes belong to
+        self.tree = tree
+
     def __str__(self):
         return str(self.formula)
     
@@ -115,11 +118,16 @@ class FormulaNode():
         if not self.rule_fits_operation(rule):
             return
         
-        rule_node = RuleNode(rule, child=self)
+        rule_node = RuleNode(rule, child=self, tree=self.tree)
         self.parent = rule_node
         rule_node.expand()
         
     def rule_fits_operation(self, rule):
+        # As seguintes regras podem gerar fórmulas em qualquer formato:
+        # Exclusões do and, exclusão do or, exclusão do false, exclusão da implicação, exclusão da dupla negação
+        if rule in (ANDE1, ANDE2, ORE, FE, TOE, NOTNOT):
+            return True
+
         operator = self.formula.operator
 
         # And só é gerado pela inclusão
@@ -138,15 +146,13 @@ class FormulaNode():
         if operator == NOT:
             return rule == NOTI
         
-        # As seguintes regras podem gerar fórmulas em qualquer formato:
-        # Exclusões do and, exclusão do or, exclusão do false, exclusão da implicação, exclusão da dupla negação
-        return operator is None and rule in (ANDE1, ANDE2, ORE, FE, TOE, NOTNOT)
+        
 
     def check_excluded_middle(self, formula):
         pass
 
 class RuleNode():
-    def __init__(self, rule, parents = [], child = None):
+    def __init__(self, rule, tree, parents = [], child = None):
         self.rule = rule # The rule being applied
 
         # Parents and child are all formulas.
@@ -155,26 +161,78 @@ class RuleNode():
         self.child = child
         self.parents = parents
 
+        self.tree = tree
+
     def expand(self):
+        # Rules which can automatically deduce the parent(s), without specification
         if self.rule == ANDI:
             self.and_inclusion()
+
+        if self.rule == FE:
+            self.false_elim()
+
+        if self.rule == ORI1:
+            self.or_intro_left()
+
+        if self.rule == ORI2:
+            self.or_intro_right()
+
+        if self.rule == NOTNOT:
+            self.double_not()
+
+        # Rules which require further input
 
     def and_inclusion(self):
         left = self.child.subformulas[0]
         right = self.child.subformulas[1]
 
-        self.parents = [FormulaNode(left), FormulaNode(right)]
+        self.parents = [FormulaNode(left, self.tree), FormulaNode(right, self.tree)]
 
+    def false_elim(self):
+        pass
 
-root = FormulaNode('((p&q))')
+    def not_intro(self):
+        pass
+
+    def double_not(self):
+        formula = str(self.child)
+        # Must include parenthesis if not atomic
+        if self.child.operator is not None:
+            formula = f'({formula})'
+
+        self.parents = [FormulaNode(f'!!{formula}', self.tree)]
+
+    def imply_intro(self):
+        pass
+
+    def or_intro_left(self):
+        left = self.child.subformulas[0]
+        self.parents = [FormulaNode(left, self.tree)]
+
+    def or_intro_right(self):
+        right = self.child.subformulas[1]
+        self.parents = [FormulaNode(right, self.tree)]
+
+class Tree():
+    def __init__(self, goal, hypotheses = []):
+        self.root = FormulaNode(goal, tree=self)
+        self.hypotheses = [Formula(h) for h in hypotheses]
+
+tree = Tree('p&q', ['!p'])
+root = tree.root
 print(root)
 
-root.expand(ANDI)
+root.expand(NOTNOT)
 for p in root.parent.parents:
     print(p)
 
+# for h in tree.hypotheses:
+#     print(h)
+
 #### Pensamentos
-# Se tiver uma disjunção, clicar VI1 ou VI2 resolve automaticamente, botando como pai o lado esquerdo ou direito
-# Analogamente, AI bota os dois lados como pais
-# AE vai requerer escrever o outro lado da expressão (ou talvez a expressão completa?)
-# Da mesma forma, VE requer escrever a disjunção em análise (mas reaproveita o filho)
+# Preciso achar uma maneira de tratar o False/Bottom, em termos de enumeração.
+# Também preciso desenvolver um tracking de que ramo o usuário está atualmente,
+# pra monitorar as hipóteses assumidas de cada ramo. Acho que fazer os nodos guardarem o menor ramo ao qual pertencem e,
+# toda vez que uma operação gera uma bifurcação ou introdução de hipótese, fazer eles solicitarem à árvore um novo número de ramo.
+# O ramo então copia a lista de hipóteses do ramo ao qual já pertencia e vai adicionando suas novas.
+# O programa verifica o ramo em análise para listar as hipóteses ativas.
