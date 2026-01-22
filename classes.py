@@ -171,7 +171,8 @@ class FormulaNode():
         if operator == NOT:
             return rule == NOTI
         
-        
+        if operator == FALSE:
+            return rule == FI 
 
     def check_excluded_middle(self, formula):
         pass
@@ -194,25 +195,43 @@ class RuleNode():
         if self.rule == ANDI:
             self.and_inclusion()
 
-        if self.rule == FE:
+        elif self.rule == FE:
             self.false_elim()
 
-        if self.rule == ORI1:
+        elif self.rule == ORI1:
             self.or_intro_left()
 
-        if self.rule == ORI2:
+        elif self.rule == ORI2:
             self.or_intro_right()
 
-        if self.rule == NOTNOT:
+        elif self.rule == NOTNOT:
             self.double_not()
 
-        if self.rule == TOI:
+        elif self.rule == TOI:
             self.imply_intro()
 
-        if self.rule == NOTI:
+        elif self.rule == NOTI:
             self.not_intro()
 
+        elif self.rule == EM:
+            pass
+
         # Rules which require further input
+
+        elif self.rule == ANDE1:
+            self.and_elim_left()
+
+        elif self.rule == ANDE2:
+            self.and_elim_right()
+
+        elif self.rule == ORE:
+            self.or_elim()
+
+        elif self.rule == FI:
+            self.false_introduction()
+
+        elif self.rule == TOE:
+            self.imply_elim()
 
     def and_inclusion(self):
         left = self.child.subformulas[0]
@@ -254,6 +273,71 @@ class RuleNode():
         right = self.child.subformulas[1]
         self.parents = [FormulaNode(right, self.tree, self.branch)]
 
+    def and_elim_left(self):
+        left = self.child
+        right_input = input('Informe o lado direito da conjunção: ')
+        right = Formula(right_input)
+
+        if left.operator is not None and left.operator > AND:
+            left = f'({left})'
+        if right.operator is not None and right.operator > AND:
+            right = f'({right})'
+
+        self.parents = [FormulaNode(f'{left}&{right}', self.tree, self.branch)]
+
+    def and_elim_right(self):
+        right = self.child
+        left_input = input('Informe o lado esquerdo da conjunção: ')
+        left = Formula(left_input)
+
+        if left.operator is not None and left.operator > AND:
+            left = f'({left})'
+        if right.operator is not None and right.operator > AND:
+            right = f'({right})'
+
+        self.parents = [FormulaNode(f'{left}&{right}', self.tree, self.branch)]
+
+    def false_introduction(self):
+        statement = input('Informe a fórmula a ser negada: ')
+        true_st = Formula(statement)
+
+        false_st = true_st
+        if false_st.operator is not None and false_st.operator > NOT:
+            false_st = f'({false_st})'
+        false_st = f'!{false_st}'
+
+        self.parents = [FormulaNode(true_st, self.tree, self.branch+'0'), FormulaNode(false_st, self.tree, self.branch+'1')]
+        self.tree.add_branch(self.branch+'0')
+        self.tree.add_branch(self.branch+'1')
+
+    def imply_elim(self):
+        pre = input('Informe a premissa: ')
+        pre = Formula(pre)
+        cons = self.child
+
+        full_st = f'{pre}->{cons}'
+
+        self.parents = [FormulaNode(full_st, self.tree, self.branch+'0'), FormulaNode(pre, self.tree, self.branch+'1')]
+        self.tree.add_branch(self.branch+'0')
+        self.tree.add_branch(self.branch+'1')
+
+    def or_elim(self):
+        disj = input('Informe a disjunção: ')
+        disj = Formula(disj)
+
+        node_disj = FormulaNode(disj, self.tree, self.branch+'0')
+        self.tree.add_branch(self.branch+'0')
+
+        child = self.child
+        left = disj.subformulas[0]
+        right = disj.subformulas[1]
+        route1 = FormulaNode(child, self.tree, self.branch+'1')
+        route2 = FormulaNode(child, self.tree, self.branch+'2')
+        self.tree.add_branch(self.branch+'1', left)
+        self.tree.add_branch(self.branch+'2', right)
+
+        self.parents = [node_disj, route1, route2]
+
 class Tree():
     def __init__(self, goal, hypotheses = []):
         self.root = FormulaNode(goal, tree=self, branch='0')
@@ -278,27 +362,23 @@ class Tree():
         assumptions = self.branch_assumptions[branch]
         return self.hypotheses + assumptions
 
-tree = Tree('!p', ['!t'])
+tree = Tree('p&q')
 root = tree.root
 print(root)
 
-root.expand(NOTI)
+root.expand(ORE)
 for p in root.parent.parents:
     print(p, p.branch)
     print(tree.get_hypotheses(p))
-print(tree.get_hypotheses(root))
+# print(tree.get_hypotheses(root))
 
 # for h in tree.hypotheses:
 #     print(h)
 
 #### Pensamentos
-# Preciso achar uma maneira de tratar o False/Bottom, em termos de enumeração.
-# Também preciso desenvolver um tracking de que ramo o usuário está atualmente,
-# pra monitorar as hipóteses assumidas de cada ramo. Acho que fazer os nodos guardarem o menor ramo ao qual pertencem e,
-# toda vez que uma operação gera uma bifurcação ou introdução de hipótese, fazer eles solicitarem à árvore um novo número de ramo.
-# O ramo então copia a lista de hipóteses do ramo ao qual já pertencia e vai adicionando suas novas.
-# O programa verifica o ramo em análise para listar as hipóteses ativas.
 # Também preciso identificar quando um nodo de regra foi satisfeito e propagar seu fechamento pra baixo
 # Até que a árvore detecte que todos os ramos foram fechados
 # E, auxiliarmente, ser capaz de reverter a árvore a um estado anterior, cortando um ramo.
 # Além de ser capaz de identificar o ramo/nodo atualmente em análise
+
+# Criar mecanismo para reconhecimento de nodo igual a hipótese ou igual ao terceiro excluído
