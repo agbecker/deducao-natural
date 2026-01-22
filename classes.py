@@ -115,8 +115,11 @@ class Formula():
     
     def __eq__(self, other):
         if type(other) is not Formula:
-            return False
-        
+            if type(other) is str:
+                other = Formula(other)
+            else:
+                return False
+
         return self.operator == other.operator and self.subformulas == other.subformulas
 
 class FormulaNode():
@@ -136,6 +139,7 @@ class FormulaNode():
         # The tree all nodes belong to
         self.tree = tree
         self.branch = branch
+        self.tree.set_branch_top(self)
 
     def __str__(self):
         return str(self.formula)
@@ -148,14 +152,17 @@ class FormulaNode():
         self.parent = rule_node
         rule_node.expand()
         
-    def rule_fits_operation(self, rule, hypothesis):
+    def rule_fits_operation(self, rule, hi):
         # As seguintes regras podem gerar fórmulas em qualquer formato:
         # Exclusões do and, exclusão do or, exclusão do false, exclusão da implicação, exclusão da dupla negação
         if rule in (ANDE1, ANDE2, ORE, FE, TOE, NOTNOT):
             return True
         
         if rule == HYP:
-            return self.check_hypothesis(hypothesis)
+            i = int(hi[1:]) # Converts to int
+            hypotheses = self.tree.get_hypotheses(self)
+            n = len(hypotheses)
+            return i < n and self.check_hypothesis(hypotheses[i])
         
         operator = self.formula.operator
 
@@ -189,7 +196,7 @@ class FormulaNode():
         return False
 
     def check_hypothesis(self, hypothesis):
-        pass
+        return self.formula == hypothesis
 
 class RuleNode():
     def __init__(self, rule, tree, branch, parents = [], child = None):
@@ -228,10 +235,10 @@ class RuleNode():
             self.not_intro()
 
         elif self.rule == EM:
-            pass
+            self.excluded_middle()
 
         elif self.rule == HYP:
-            pass
+            self.by_hypothesis()
 
         # Rules which require further input
 
@@ -381,21 +388,29 @@ class RuleNode():
         self.tree.add_branch(route2.branch, right)
         self.tree.look_at(node_disj)
 
+    def excluded_middle(self):
+        self.tree.close_branch(self.branch)
+
+    def by_hypothesis(self):
+        self.tree.close_branch(self.branch)
+
 class Tree():
     def __init__(self, goal, hypotheses = []):
-        self.root = FormulaNode(goal, tree=self, branch='0')
-        self.hypotheses = [Formula(h) for h in hypotheses]
-        
-        # Branches
-        self.branches = {'0'}
+        self.branches = {'0':None}
         self.active_branches = {'0'}
         self.branch_assumptions = {'0':[]}
+
+        self.root = FormulaNode(goal, tree=self, branch='0')
+        self.hypotheses = hypotheses
 
         self.ongoing = True
         self.focus_node = self.root
 
+    def set_branch_top(self, node):
+        branch = node.branch
+        self.branches[branch] = node
+
     def add_branch(self, new_branch, assumption = None):
-        self.branches.add(new_branch)
         self.active_branches.add(new_branch)
 
         old_branch = new_branch[:-1]
@@ -408,14 +423,25 @@ class Tree():
         assumptions = self.branch_assumptions[branch]
         return self.hypotheses + assumptions
     
+    def show_hypotheses(self):
+        hypotheses = self.get_hypotheses(self.focus_node)
+        for i, h in enumerate(hypotheses):
+            print(f'h{i}: {h}')
+    
     def close_branch(self, branch):
         if branch == '0':
             self.end_deduction()
+            return
 
         self.active_branches.remove(branch)
         sub_branch = branch[:-1]
-        if not self.has_upper_branches(sub_branch):
-            self.close_branch(sub_branch)        
+
+        if self.has_upper_branches(sub_branch):
+            focus_branch = self.find_leftmost_from(sub_branch)
+            self.focus_node = self.branches[focus_branch]
+            return
+
+        self.close_branch(sub_branch)        
 
     def has_upper_branches(self, branch):
         # Checks that there are open branches with the branch as prefix, not including itself
@@ -424,6 +450,11 @@ class Tree():
         
         return len(sprouts) > 0
 
+    def find_leftmost_from(self, branch):
+        n = len(branch)
+        sprouts = [b for b in self.active_branches if len(b) > n and b[:n] == branch]
+        
+        return sorted(sprouts)[0]
 
     def end_deduction(self):
         self.ongoing = False
@@ -432,18 +463,34 @@ class Tree():
     def look_at(self, node):
         self.focus_node = node
 
-    def expand(self, rule):
-        self.focus_node.expand(rule)
+    def expand(self, rule, hyp = None):
+        self.focus_node.expand(rule, hyp)
 
 if __name__ == '__main__':
     goal = input('Informe a fórmula a ser provada: ')
-    tree = Tree(goal)
+    hypotheses = []
+    while True:
+        hyp = input('Informe uma hipótese. Escreva "fim" para encerrar. ').strip()
+        if hyp.lower() == 'fim':
+            break
+        hypotheses.append(Formula(hyp))
+
+    tree = Tree(goal, hypotheses)
 
     while tree.ongoing:
         print(tree.focus_node)
-        action = input('Informe a operação a realizar: ')
-        action = eval(action.upper())
-        tree.expand(action)
+        action = input('Informe a operação a realizar: ').strip()
+
+        if action == '?':
+            tree.show_hypotheses()
+
+        elif re.fullmatch(r'h\d', action):
+            tree.expand(HYP, action)
+        
+        else:
+            action = eval(action.upper())
+            tree.expand(action)
+        # print(tree.focus_node.branch)
 
 # print(eval('ANDI'))
 
