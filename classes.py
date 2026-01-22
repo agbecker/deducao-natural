@@ -32,7 +32,7 @@ FI = 9
 NOTI = 10
 NOTNOT = 11
 EM = 12
-HIP = 13
+HYP = 13
 
 class Formula():
     def __init__(self, literal):
@@ -140,27 +140,30 @@ class FormulaNode():
     def __str__(self):
         return str(self.formula)
     
-    def expand(self, rule):
-        if not self.rule_fits_operation(rule):
+    def expand(self, rule, hyp = None):
+        if not self.rule_fits_operation(rule, hyp):
             return
         
-        rule_node = RuleNode(rule, child=self, tree=self.tree, branch=self.branch,)
+        rule_node = RuleNode(rule, child=self, tree=self.tree, branch=self.branch)
         self.parent = rule_node
         rule_node.expand()
         
-    def rule_fits_operation(self, rule):
+    def rule_fits_operation(self, rule, hypothesis):
         # As seguintes regras podem gerar fórmulas em qualquer formato:
         # Exclusões do and, exclusão do or, exclusão do false, exclusão da implicação, exclusão da dupla negação
         if rule in (ANDE1, ANDE2, ORE, FE, TOE, NOTNOT):
             return True
-
+        
+        if rule == HYP:
+            return self.check_hypothesis(hypothesis)
+        
         operator = self.formula.operator
 
         # And só é gerado pela inclusão
         if operator == AND:
             return rule == ANDI
         
-        # Or só é gerado pelas inclusões
+        # Or só é gerado pelas inclusões ou resolve pelo terceiro excluído
         if operator == OR:
             return rule in (ORI1, ORI2) or rule == EM and self.check_excluded_middle(self.formula)
         
@@ -176,6 +179,16 @@ class FormulaNode():
             return rule == FI 
 
     def check_excluded_middle(self, formula):
+        left = formula.subformulas[0]
+        right = formula.subformulas[1]
+
+        if right.operator == NOT:
+            right_sub = right.subformulas[0]
+            return left == right_sub
+        
+        return False
+
+    def check_hypothesis(self, hypothesis):
         pass
 
 class RuleNode():
@@ -214,6 +227,12 @@ class RuleNode():
         elif self.rule == NOTI:
             self.not_intro()
 
+        elif self.rule == EM:
+            pass
+
+        elif self.rule == HYP:
+            pass
+
         # Rules which require further input
 
         elif self.rule == ANDE1:
@@ -230,12 +249,6 @@ class RuleNode():
 
         elif self.rule == TOE:
             self.imply_elim()
-
-        elif self.rule == EM:
-            pass
-
-        elif self.rule == HIP:
-            pass
 
     def and_inclusion(self):
         left = self.child.subformulas[0]
@@ -362,7 +375,7 @@ class RuleNode():
         right = disj.subformulas[1]
         route1 = FormulaNode(child, self.tree, self.branch+'1')
         route2 = FormulaNode(child, self.tree, self.branch+'2')
-        
+
         self.parents = [node_disj, route1, route2]
         self.tree.add_branch(route1.branch, left)
         self.tree.add_branch(route2.branch, right)
@@ -419,8 +432,18 @@ class Tree():
     def look_at(self, node):
         self.focus_node = node
 
-if __name__ == '__main__':
+    def expand(self, rule):
+        self.focus_node.expand(rule)
 
+if __name__ == '__main__':
+    goal = input('Informe a fórmula a ser provada: ')
+    tree = Tree(goal)
+
+    while tree.ongoing:
+        print(tree.focus_node)
+        action = input('Informe a operação a realizar: ')
+        action = eval(action.upper())
+        tree.expand(action)
 
 # print(eval('ANDI'))
 
