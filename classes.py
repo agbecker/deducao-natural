@@ -6,15 +6,17 @@ land = '∧'
 lor = '∨'
 lnot = '¬'
 lto = '→'
+lfalse = '⊥'
 
 # Precedence of operations
+FALSE = -1
 NOT = 0
 AND = 1
 OR = 2
 IMPLY = 3
 
 logical_symbols = {lnot:NOT, land:AND, lor:OR, lto:IMPLY}
-logical_symbols_lookup = {NOT:lnot, AND:land, OR:lor, IMPLY:lto, None:'None'}
+logical_symbols_lookup = {NOT:lnot, AND:land, OR:lor, IMPLY:lto, None:'None', FALSE:lfalse}
 
 # Rules
 ANDE1 = 0
@@ -47,6 +49,11 @@ class Formula():
 
     def parse_literal(self, literal):
         literal = self.preprocess_literal(literal)
+
+        if literal == lfalse:
+            self.operator = FALSE
+            self.subformulas = []
+            return
 
         # Obtains the operator and subformulas
         depth = 0
@@ -90,6 +97,8 @@ class Formula():
             self.subformulas = [left, right]
 
     def __str__(self):
+        if self.operator == FALSE:
+            return lfalse
         if self.operator is None:
             return self.subformulas[0]
         if self.operator is NOT:
@@ -204,7 +213,7 @@ class RuleNode():
         self.parents = [FormulaNode(left, self.tree), FormulaNode(right, self.tree)]
 
     def false_elim(self):
-        pass
+        self.parents = [FormulaNode(lfalse, self.tree)]
 
     def not_intro(self):
         pass
@@ -233,7 +242,7 @@ class Tree():
         self.root = FormulaNode(goal, tree=self)
         self.hypotheses = [Formula(h) for h in hypotheses]
 
-tree = Tree('!(p->(q->p))', ['!p'])
+tree = Tree('p->q', ['!p'])
 root = tree.root
 print(root)
 
@@ -251,3 +260,7 @@ print(root)
 # toda vez que uma operação gera uma bifurcação ou introdução de hipótese, fazer eles solicitarem à árvore um novo número de ramo.
 # O ramo então copia a lista de hipóteses do ramo ao qual já pertencia e vai adicionando suas novas.
 # O programa verifica o ramo em análise para listar as hipóteses ativas.
+# Também preciso identificar quando um nodo de regra foi satisfeito e propagar seu fechamento pra baixo
+# Até que a árvore detecte que todos os ramos foram fechados
+# E, auxiliarmente, ser capaz de reverter a árvore a um estado anterior, cortando um ramo.
+# Além de ser capaz de identificar o ramo/nodo atualmente em análise
