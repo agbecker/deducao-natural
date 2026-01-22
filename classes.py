@@ -69,10 +69,25 @@ class Formula():
             self.subformulas = [literal] # Atomic variable formula
 
         elif self.operator == NOT:
-            self.subformulas = [literal[1:]]
+            sub = literal[1:]
+            sub = Formula(sub)
+            if sub.operator is not None and sub.operator > NOT:
+                sub = f'({sub})'
+            self.subformulas = [str(sub)]
         
         else:
-            self.subformulas = [literal[:op_position], literal[op_position+1:]]
+            left = literal[:op_position]
+            right = literal[op_position+1:]
+
+            left = Formula(left)
+            right = Formula(right)
+
+            if left.operator is not None and left.operator > op:
+                left = f'({left})'
+            if right.operator is not None and right.operator > op:
+                right = f'({right})'
+
+            self.subformulas = [left, right]
 
     def __str__(self):
         if self.operator is None:
@@ -218,13 +233,13 @@ class Tree():
         self.root = FormulaNode(goal, tree=self)
         self.hypotheses = [Formula(h) for h in hypotheses]
 
-tree = Tree('p&q', ['!p'])
+tree = Tree('!(p->(q->p))', ['!p'])
 root = tree.root
 print(root)
 
-root.expand(NOTNOT)
-for p in root.parent.parents:
-    print(p)
+# root.expand(NOTNOT)
+# for p in root.parent.parents:
+#     print(p)
 
 # for h in tree.hypotheses:
 #     print(h)
