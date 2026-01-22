@@ -38,9 +38,22 @@ class Formula():
     def __init__(self, literal):
         self.parse_literal(literal)
 
-    def preprocess_literal(self, literal):
-        while re.fullmatch(r'\(.+\)', literal):
+    def deparenthise(self, literal):
+        while literal[0] == '(' and literal[-1] == ')':
+            depth = 0
+            n = len(literal)
+            for i, c in enumerate(literal):
+                if c == '(':
+                    depth += 1
+                if c == ')':
+                    depth -= 1
+                    if depth == 0 and i < n-1:
+                        return literal
             literal = literal[1:-1]
+        return literal
+
+    def preprocess_literal(self, literal):
+        literal = self.deparenthise(literal)
 
         literal = re.sub(r'or|\|+|\\/', lor, literal)
         literal = re.sub(r'and|&+|/\\', land, literal)
