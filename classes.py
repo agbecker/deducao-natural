@@ -92,8 +92,6 @@ class Formula():
         elif self.operator == NOT:
             sub = literal[1:]
             sub = Formula(sub)
-            if sub.operator is not None and sub.operator > NOT:
-                sub = f'({sub})'
             self.subformulas = [str(sub)]
         
         else:
@@ -103,12 +101,7 @@ class Formula():
             left = Formula(left)
             right = Formula(right)
 
-            if left.operator is not None and left.operator > op:
-                left = f'({left})'
-            if right.operator is not None and right.operator > op:
-                right = f'({right})'
-
-            self.subformulas = [left, right]
+            self.subformulas = [str(left), str(right)]
 
     def __str__(self):
         if self.operator == FALSE:
@@ -116,9 +109,19 @@ class Formula():
         if self.operator is None:
             return self.subformulas[0]
         if self.operator is NOT:
-            return f'{lnot}{self.subformulas[0]}'
+            sub = Formula(self.subformulas[0])
+            if sub.operator is not None and sub.operator > NOT:
+                sub = f'({sub})'
+            return f'{lnot}{sub}'
         else:
-            return f'{self.subformulas[0]}{logical_symbols_lookup[self.operator]}{self.subformulas[1]}'
+            left = Formula(self.subformulas[0])
+            right = Formula(self.subformulas[1])
+
+            if left.operator is not None and left.operator >= self.operator:
+                left = f'({left})'
+            if right.operator is not None and right.operator > self.operator:
+                right = f'({right})'
+            return f'{left}{logical_symbols_lookup[self.operator]}{right}'
         
     def __repr__(self):
         ret = str(self)
