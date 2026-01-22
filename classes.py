@@ -32,6 +32,7 @@ FI = 9
 NOTI = 10
 NOTNOT = 11
 EM = 12
+HIP = 13
 
 class Formula():
     def __init__(self, literal):
@@ -213,9 +214,6 @@ class RuleNode():
         elif self.rule == NOTI:
             self.not_intro()
 
-        elif self.rule == EM:
-            pass
-
         # Rules which require further input
 
         elif self.rule == ANDE1:
@@ -233,22 +231,36 @@ class RuleNode():
         elif self.rule == TOE:
             self.imply_elim()
 
+        elif self.rule == EM:
+            pass
+
+        elif self.rule == HIP:
+            pass
+
     def and_inclusion(self):
         left = self.child.subformulas[0]
         right = self.child.subformulas[1]
 
-        self.parents = [FormulaNode(left, self.tree, self.branch+'0'), FormulaNode(right, self.tree, self.branch+'1')]
-        self.tree.add_branch(self.branch+'0')
-        self.tree.add_branch(self.branch+'1')
+        left_node = FormulaNode(left, self.tree, self.branch+'0')
+        right_node = FormulaNode(right, self.tree, self.branch+'1')
+        self.parents = [left_node, right_node]
+
+        self.tree.add_branch(left_node.branch)
+        self.tree.add_branch(right_node.branch)
+        self.tree.look_at(left_node)
 
     def false_elim(self):
-        self.parents = [FormulaNode(lfalse, self.tree, self.branch)]
+        node = FormulaNode(lfalse, self.tree, self.branch)
+        self.parents = [node]
+        self.tree.look_at(node)
 
     def not_intro(self):
         pre = self.child.subformulas[0]
 
-        self.parents = [FormulaNode(lfalse, self.tree, self.branch+'0')]
-        self.tree.add_branch(self.branch+'0', pre)
+        node = FormulaNode(lfalse, self.tree, self.branch+'0')
+        self.parents = [node]
+        self.tree.add_branch(node.branch, pre)
+        self.tree.look_at(node)
 
     def double_not(self):
         formula = str(self.child)
@@ -256,22 +268,31 @@ class RuleNode():
         if self.child.operator is not None:
             formula = f'({formula})'
 
-        self.parents = [FormulaNode(f'!!{formula}', self.tree, self.branch)]
+        node = FormulaNode(f'!!{formula}', self.tree, self.branch)
+        self.parents = [node]
+        self.tree.look_at(node)
 
     def imply_intro(self):
         pre = self.child.subformulas[0]
         cons = self.child.subformulas[1]
 
-        self.parents = [FormulaNode(cons, self.tree, self.branch+'0')]
-        self.tree.add_branch(self.branch+'0', pre)
+        cons_node = FormulaNode(cons, self.tree, self.branch+'0')
+        self.parents = [cons_node]
+        self.tree.add_branch(cons_node.branch, pre)
+        self.tree.look_at(cons_node)
 
     def or_intro_left(self):
         left = self.child.subformulas[0]
-        self.parents = [FormulaNode(left, self.tree, self.branch)]
+        left_node = FormulaNode(left, self.tree, self.branch)
+        self.parents = [left_node]
+        self.tree.look_at(left_node)
 
     def or_intro_right(self):
         right = self.child.subformulas[1]
-        self.parents = [FormulaNode(right, self.tree, self.branch)]
+        right_node = FormulaNode(right, self.tree, self.branch)
+        self.parents = [right_node]
+        self.tree.look_at(right_node)
+
 
     def and_elim_left(self):
         left = self.child
@@ -283,7 +304,9 @@ class RuleNode():
         if right.operator is not None and right.operator > AND:
             right = f'({right})'
 
-        self.parents = [FormulaNode(f'{left}&{right}', self.tree, self.branch)]
+        node = FormulaNode(f'{left}&{right}', self.tree, self.branch)
+        self.parents = [node]
+        self.tree.look_at(node)
 
     def and_elim_right(self):
         right = self.child
@@ -295,7 +318,9 @@ class RuleNode():
         if right.operator is not None and right.operator > AND:
             right = f'({right})'
 
-        self.parents = [FormulaNode(f'{left}&{right}', self.tree, self.branch)]
+        node = FormulaNode(f'{left}&{right}', self.tree, self.branch)
+        self.parents = [node]
+        self.tree.look_at(node)
 
     def false_introduction(self):
         statement = input('Informe a fórmula a ser negada: ')
@@ -306,37 +331,42 @@ class RuleNode():
             false_st = f'({false_st})'
         false_st = f'!{false_st}'
 
-        self.parents = [FormulaNode(true_st, self.tree, self.branch+'0'), FormulaNode(false_st, self.tree, self.branch+'1')]
-        self.tree.add_branch(self.branch+'0')
-        self.tree.add_branch(self.branch+'1')
+        true_node = FormulaNode(true_st, self.tree, self.branch+'0')
+        false_node = FormulaNode(false_st, self.tree, self.branch+'1')
+        self.parents = [true_node, false_node]
+        self.tree.add_branch(true_node.branch)
+        self.tree.add_branch(false_node.branch)
+        self.tree.look_at(true_node)
 
     def imply_elim(self):
         pre = input('Informe a premissa: ')
         pre = Formula(pre)
         cons = self.child
-
         full_st = f'{pre}->{cons}'
 
-        self.parents = [FormulaNode(full_st, self.tree, self.branch+'0'), FormulaNode(pre, self.tree, self.branch+'1')]
-        self.tree.add_branch(self.branch+'0')
-        self.tree.add_branch(self.branch+'1')
+        imply_node = FormulaNode(full_st, self.tree, self.branch+'0')
+        pre_node = FormulaNode(pre, self.tree, self.branch+'1')
+        self.parents = [imply_node, pre_node]
+        self.tree.add_branch(imply_node.branch)
+        self.tree.add_branch(pre_node.branch)
+        self.tree.look_at(imply_node)
 
     def or_elim(self):
         disj = input('Informe a disjunção: ')
         disj = Formula(disj)
-
         node_disj = FormulaNode(disj, self.tree, self.branch+'0')
-        self.tree.add_branch(self.branch+'0')
+        self.tree.add_branch(node_disj.branch)
 
         child = self.child
         left = disj.subformulas[0]
         right = disj.subformulas[1]
         route1 = FormulaNode(child, self.tree, self.branch+'1')
         route2 = FormulaNode(child, self.tree, self.branch+'2')
-        self.tree.add_branch(self.branch+'1', left)
-        self.tree.add_branch(self.branch+'2', right)
-
+        
         self.parents = [node_disj, route1, route2]
+        self.tree.add_branch(route1.branch, left)
+        self.tree.add_branch(route2.branch, right)
+        self.tree.look_at(node_disj)
 
 class Tree():
     def __init__(self, goal, hypotheses = []):
@@ -347,6 +377,9 @@ class Tree():
         self.branches = {'0'}
         self.active_branches = {'0'}
         self.branch_assumptions = {'0':[]}
+
+        self.ongoing = True
+        self.focus_node = self.root
 
     def add_branch(self, new_branch, assumption = None):
         self.branches.add(new_branch)
@@ -380,16 +413,25 @@ class Tree():
 
 
     def end_deduction(self):
+        self.ongoing = False
         print('Parabéns! Você provou o teorema!')
 
-tree = Tree('p&q')
-root = tree.root
-print(root)
+    def look_at(self, node):
+        self.focus_node = node
 
-root.expand(ORE)
-for p in root.parent.parents:
-    print(p, p.branch)
-    print(tree.get_hypotheses(p))
+if __name__ == '__main__':
+
+
+# print(eval('ANDI'))
+
+# tree = Tree('p&q')
+# root = tree.root
+# print(root)
+
+# root.expand(ORE)
+# for p in root.parent.parents:
+#     print(p, p.branch)
+#     print(tree.get_hypotheses(p))
 # print(tree.get_hypotheses(root))
 
 # for h in tree.hypotheses:
