@@ -62,6 +62,8 @@ class Formula():
         return literal.replace(' ', '')
 
     def parse_literal(self, literal):
+        if type(literal) is Formula:
+            literal = str(literal)
         literal = self.preprocess_literal(literal)
 
         if literal == lfalse:
@@ -202,8 +204,8 @@ class FormulaNode():
             return rule == FI 
 
     def check_excluded_middle(self, formula):
-        left = formula.subformulas[0]
-        right = formula.subformulas[1]
+        left = Formula(formula.subformulas[0])
+        right = Formula(formula.subformulas[1])
 
         if right.operator == NOT:
             right_sub = right.subformulas[0]
@@ -504,8 +506,11 @@ if __name__ == '__main__':
             tree.expand(HYP, action)
         
         else:
-            action = eval(action.upper())
-            tree.expand(action)
+            try:
+                action = eval(action.upper())
+                tree.expand(action)
+            except:
+                print('Entrada inválida.')
         # print(tree.focus_node.branch)
 
 # print(eval('ANDI'))
