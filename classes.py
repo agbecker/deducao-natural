@@ -62,6 +62,15 @@ class Formula():
         return literal.replace(' ', '')
     
     def check_syntax_errors(self, literal):
+        # Verifica fórmula vazia:
+        if len(literal) == 0:
+            raise FormulaSyntaxError('Fórmula vazia.')
+
+        # Verifica se há símbolos indevidos
+        if s := re.search(r'[^a-zA-Z()∧∨¬→]+', literal):
+            msg = f'O símbolo {s.group()[0]} é inválido para composição de fórmulas.'
+            raise FormulaSyntaxError(msg)
+
         # Verifica ocorrência de letras em sequência
         if s := re.search(r'\w\w', literal):
             msg = f'Proposições devem ser compostas por uma única letra. Sua fórmula contém o trecho [{s.group()}].'
