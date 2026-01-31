@@ -60,11 +60,52 @@ class Formula():
         literal = re.sub(r'not|!|~', lnot, literal)
         literal = re.sub(r'->|to', lto, literal)
         return literal.replace(' ', '')
+    
+    def check_syntax_errors(self, literal):
+        # Verifica fórmula vazia:
+        if len(literal) == 0:
+            raise FormulaSyntaxError('Fórmula vazia.')
+
+        # Verifica se há símbolos indevidos
+        if s := re.search(r'[^a-zA-Z()∧∨¬→]+', literal):
+            msg = f'O símbolo {s.group()[0]} é inválido para composição de fórmulas.'
+            raise FormulaSyntaxError(msg)
+
+        # Verifica ocorrência de letras em sequência
+        if s := re.search(r'\w\w', literal):
+            msg = f'Proposições devem ser compostas por uma única letra. Sua fórmula contém o trecho [{s.group()}].'
+            raise FormulaSyntaxError(msg)
+        
+        # Verifica erros de parênteses
+        count_open = literal.count('(')
+        count_close = literal.count(')')
+
+        if count_open != count_close:
+            if count_open > count_close:
+                msg = "Há um parênteses '(' na sua fórmula que não foi fechado."
+            else:
+                msg = "Há um fecha parênteses ')' sobrando na sua fórmula."
+            raise FormulaSyntaxError(msg)
+        
+        # Verifica operadores sem variáveis
+        if s := re.search(r'[(∧∨¬→][∧∨→)]', literal):
+            msg = f"O seguinte trecho inclui um operador sem variável: [{s.group()}]"
+            raise FormulaSyntaxError(msg)
+        
+        if literal[0] in '∧∨→':
+            msg = "Há um operador sem proposição no começo da fórmula."
+            raise FormulaSyntaxError(msg)
+        
+        if literal[-1] in '∧∨¬→':
+            msg = "Há um operador sem proposição no final da fórmula."
+            raise FormulaSyntaxError(msg)
 
     def parse_literal(self, literal):
         if type(literal) is Formula:
             literal = str(literal)
         literal = self.preprocess_literal(literal)
+
+        self.check_syntax_errors(literal)
 
         if literal == lfalse:
             self.operator = FALSE
@@ -81,11 +122,15 @@ class Formula():
                 depth += 1
             elif c == ')':
                 depth -= 1
+                if depth < 0:
+                    raise FormulaSyntaxError('Você fechou um parênteses que nunca abriu.')
             elif depth == 0 and c in logical_symbols:
                 pre = logical_symbols[c]
                 if op is None or op < pre:
                     op = pre
                     op_position = i        
+        if depth != 0:
+            raise FormulaSyntaxError('Você abriu um parênteses que nunca fechou.')
 
         self.operator = op
         if self.operator is None:
@@ -139,6 +184,13 @@ class Formula():
                 return False
 
         return self.operator == other.operator and self.subformulas == other.subformulas
+    
+class FormulaSyntaxError(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    def __str__(self):
+        return super().__str__()
 
 class FormulaNode():
     def __init__(self, formula, tree, branch, parent = None, child = None):
@@ -485,13 +537,27 @@ class Tree():
         self.focus_node.expand(rule, hyp)
 
 if __name__ == '__main__':
-    goal = input('Informe a fórmula a ser provada: ')
+    while True:
+        try:
+            goal = input('Informe a fórmula a ser provada: ')
+            goal = Formula(goal)
+            break
+        except FormulaSyntaxError as e:
+            print('Fórmula incorreta devido ao seguinte erro:')
+            print(e)
+            print('Tente novamente.')
     hypotheses = []
     while True:
         hyp = input('Informe uma hipótese. Escreva "fim" para encerrar. ').strip()
         if hyp.lower() == 'fim':
             break
-        hypotheses.append(Formula(hyp))
+        try:
+            hyp = Formula(hyp)
+            hypotheses.append(hyp)
+        except FormulaSyntaxError as e:
+            print('Fórmula incorreta devido ao seguinte erro:')
+            print(e)
+            print('Tente novamente.')
 
     tree = Tree(goal, hypotheses)
 
