@@ -62,7 +62,6 @@ class Formula():
         return literal.replace(' ', '')
     
     def check_syntax_errors(self, literal):
-        print(literal)
         # Verifica ocorrência de letras em sequência
         if s := re.search(r'\w\w', literal):
             msg = f'Proposições devem ser compostas por uma única letra. Sua fórmula contém o trecho [{s.group()}].'
@@ -80,12 +79,11 @@ class Formula():
             raise FormulaSyntaxError(msg)
         
         # Verifica operadores sem variáveis
-        if s := re.search(r'[(∧∨¬→][∧∨¬→)]', literal):
+        if s := re.search(r'[(∧∨¬→][∧∨→)]', literal):
             msg = f"O seguinte trecho inclui um operador sem variável: [{s.group()}]"
             raise FormulaSyntaxError(msg)
-        print('passou', literal)
         
-        if literal[0] in '∧∨¬→':
+        if literal[0] in '∧∨→':
             msg = "Há um operador sem proposição no começo da fórmula."
             raise FormulaSyntaxError(msg)
         
@@ -530,13 +528,27 @@ class Tree():
         self.focus_node.expand(rule, hyp)
 
 if __name__ == '__main__':
-    goal = input('Informe a fórmula a ser provada: ')
+    while True:
+        try:
+            goal = input('Informe a fórmula a ser provada: ')
+            goal = Formula(goal)
+            break
+        except FormulaSyntaxError as e:
+            print('Fórmula incorreta devido ao seguinte erro:')
+            print(e)
+            print('Tente novamente.')
     hypotheses = []
     while True:
         hyp = input('Informe uma hipótese. Escreva "fim" para encerrar. ').strip()
         if hyp.lower() == 'fim':
             break
-        hypotheses.append(Formula(hyp))
+        try:
+            hyp = Formula(hyp)
+            hypotheses.append(hyp)
+        except FormulaSyntaxError as e:
+            print('Fórmula incorreta devido ao seguinte erro:')
+            print(e)
+            print('Tente novamente.')
 
     tree = Tree(goal, hypotheses)
 
