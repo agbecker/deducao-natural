@@ -380,7 +380,7 @@ class RuleNode():
         pre = input('Informe a premissa: ')
         pre = Formula(pre)
         cons = self.child
-        full_st = f'{pre}->{cons}'
+        full_st = f'({pre})->{cons}'
 
         imply_node = FormulaNode(full_st, self.tree, self.branch+'0')
         pre_node = FormulaNode(pre, self.tree, self.branch+'1')
