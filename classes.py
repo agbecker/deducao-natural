@@ -67,7 +67,7 @@ class Formula():
             raise FormulaSyntaxError('Fórmula vazia.')
 
         # Verifica se há símbolos indevidos
-        if s := re.search(r'[^a-zA-Z()∧∨¬→]+', literal):
+        if s := re.search(r'[^a-zA-Z()∧∨¬→⊥]+', literal):
             msg = f'O símbolo {s.group()[0]} é inválido para composição de fórmulas.'
             raise FormulaSyntaxError(msg)
 
@@ -568,7 +568,7 @@ if __name__ == '__main__':
         if action == '?':
             tree.show_hypotheses()
 
-        elif re.fullmatch(r'h\d', action):
+        elif re.fullmatch(r'h\d+', action):
             tree.expand(HYP, action)
         
         else:
