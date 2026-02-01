@@ -214,6 +214,9 @@ class FormulaNode():
     def __str__(self):
         return str(self.formula)
     
+    def __eq__(self, value):
+        return str(self) == str(value)
+    
     def expand(self, rule, hyp = None):
         if not self.rule_fits_operation(rule, hyp):
             return
