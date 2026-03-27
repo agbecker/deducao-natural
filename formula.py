@@ -33,6 +33,7 @@ NOTI = 10
 DNE = 11
 EM = 12
 HYP = 13
+DNI = 14
 
 class Formula():
     def __init__(self, literal):
@@ -126,7 +127,7 @@ class Formula():
                     raise FormulaSyntaxError('Você fechou um parênteses que nunca abriu.')
             elif depth == 0 and c in logical_symbols:
                 pre = logical_symbols[c]
-                if op is None or (op <= pre and pre!=IMPLY) or (op < pre and pre==IMPLY):
+                if op is None or (op <= pre and pre not in (NOT, IMPLY)) or (op < pre and pre in (NOT, IMPLY)):
                     op = pre
                     op_position = i        
         if depth != 0:
@@ -256,9 +257,9 @@ class FormulaNode():
         if operator == IMPLY:
             return rule == TOI
         
-        # Negação só é gerada pela inclusão
+        # Negação só é gerada pelas inclusões simples e dupla
         if operator == NOT:
-            return rule == NOTI
+            return rule == NOTI or (rule == DNI and Formula(self.subformulas[0]).operator == NOT)
         
         if operator == FALSE:
             return rule == FI 
@@ -305,6 +306,9 @@ class RuleNode():
 
         elif self.rule == DNE:
             self.double_not_elim()
+
+        elif self.rule == DNI:
+            self.double_not_intro()
 
         elif self.rule == TOI:
             self.imply_intro()
@@ -367,6 +371,14 @@ class RuleNode():
             formula = f'({formula})'
 
         node = FormulaNode(f'!!{formula}', self.tree, self.branch)
+        self.parents = [node]
+        self.tree.look_at(node)
+
+    def double_not_intro(self):
+        # Pega a fórmula por baixo das duas negações
+        formula = Formula(self.child.subformulas[0]).subformulas[0]
+
+        node = FormulaNode(formula, self.tree, self.branch)
         self.parents = [node]
         self.tree.look_at(node)
 
