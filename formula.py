@@ -30,7 +30,7 @@ TOE = 7
 FE = NOTE = 8
 FI = 9
 NOTI = 10
-NOTNOT = 11
+DNE = 11
 EM = 12
 HYP = 13
 
@@ -126,7 +126,7 @@ class Formula():
                     raise FormulaSyntaxError('Você fechou um parênteses que nunca abriu.')
             elif depth == 0 and c in logical_symbols:
                 pre = logical_symbols[c]
-                if op is None or op < pre:
+                if op is None or (op <= pre and pre!=IMPLY) or (op < pre and pre==IMPLY):
                     op = pre
                     op_position = i        
         if depth != 0:
@@ -164,10 +164,18 @@ class Formula():
             left = Formula(self.subformulas[0])
             right = Formula(self.subformulas[1])
 
-            if left.operator is not None and left.operator >= self.operator:
-                left = f'({left})'
-            if right.operator is not None and right.operator > self.operator:
-                right = f'({right})'
+            if self.operator == IMPLY:
+                # Associativa à direita: left precisa de parênteses se mesma precedência
+                if left.operator is not None and left.operator >= self.operator:
+                    left = f'({left})'
+                if right.operator is not None and right.operator > self.operator:
+                    right = f'({right})'
+            else:
+                # Associativa à esquerda (AND, OR): right precisa de parênteses se mesma precedência
+                if left.operator is not None and left.operator > self.operator:
+                    left = f'({left})'
+                if right.operator is not None and right.operator >= self.operator:
+                    right = f'({right})'
             return f'{left}{logical_symbols_lookup[self.operator]}{right}'
         
     def __repr__(self):
@@ -225,7 +233,7 @@ class FormulaNode():
     def rule_fits_operation(self, rule, hi):
         # As seguintes regras podem gerar fórmulas em qualquer formato:
         # Exclusões do and, exclusão do or, exclusão do false, exclusão da implicação, exclusão da dupla negação
-        if rule in (ANDE1, ANDE2, ORE, FE, TOE, NOTNOT):
+        if rule in (ANDE1, ANDE2, ORE, FE, TOE, DNE):
             return True
         
         if rule == HYP:
@@ -295,8 +303,8 @@ class RuleNode():
         elif self.rule == ORI2:
             self.or_intro_right()
 
-        elif self.rule == NOTNOT:
-            self.double_not()
+        elif self.rule == DNE:
+            self.double_not_elim()
 
         elif self.rule == TOI:
             self.imply_intro()
@@ -352,7 +360,7 @@ class RuleNode():
         self.tree.add_branch(node.branch, pre)
         self.tree.look_at(node)
 
-    def double_not(self):
+    def double_not_elim(self):
         formula = str(self.child)
         # Must include parenthesis if not atomic
         if self.child.operator is not None:

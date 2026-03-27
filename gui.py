@@ -9,7 +9,7 @@ import sys
 # Importar suas classes (ajuste o nome do arquivo conforme necessário)
 from formula import (Formula, FormulaSyntaxError, Tree, FormulaNode, RuleNode,
                      ANDE1, ANDE2, ANDI, ORI1, ORI2, ORE, TOI, TOE, FE, FI, 
-                     NOTI, NOTNOT, EM, HYP)
+                     NOTI, DNE, EM, HYP)
 
 
 class ClickableTextItem(QGraphicsTextItem):
@@ -302,7 +302,7 @@ class ProofCanvas(QGraphicsView):
             FE: "⊥E",
             FI: "⊥I",
             NOTI: "¬I",
-            NOTNOT: "¬¬E",
+            DNE: "¬¬E",
             EM: "EM",
             HYP: "Hip"
         }
@@ -601,7 +601,7 @@ class ProofScreen(QWidget):
             ("⊥E (False Elim)", FE),
             ("⊥I (False Intro)", FI),
             ("¬I (Not Intro)", NOTI),
-            ("¬¬E (Double Not)", NOTNOT),
+            ("¬¬E (Double Not)", DNE),
             ("EM (Exc. Médio)", EM),
         ]
         
