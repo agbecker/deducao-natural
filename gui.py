@@ -9,7 +9,7 @@ import sys
 # Importar suas classes (ajuste o nome do arquivo conforme necessário)
 from formula import (Formula, FormulaSyntaxError, Tree, FormulaNode, RuleNode,
                      ANDE1, ANDE2, ANDI, ORI1, ORI2, ORE, TOI, TOE, FE, FI, 
-                     NOTI, DNE, EM, HYP)
+                     NOTI, DNE, DNI, EM, HYP)
 
 
 class ClickableTextItem(QGraphicsTextItem):
@@ -106,7 +106,7 @@ class ProofCanvas(QGraphicsView):
             self.tree.look_at(node)
             self.draw_tree()
             
-            # Notifica o ProofScreen para atualizar as hipóteses
+            # Notifica o ProofScreen para atualizar as premissas
             parent = self.parent()
             while parent:
                 if isinstance(parent, ProofScreen):
@@ -291,26 +291,27 @@ class ProofCanvas(QGraphicsView):
     def get_rule_name(self, rule):
         """Retorna o nome legível da regra"""
         rule_names = {
-            ANDE1: "∧E₁",
-            ANDE2: "∧E₂",
-            ANDI: "∧I",
-            ORI1: "∨I₁",
-            ORI2: "∨I₂",
-            ORE: "∨E",
-            TOI: "→I",
-            TOE: "→E",
-            FE: "⊥E",
-            FI: "⊥I",
-            NOTI: "¬I",
-            DNE: "¬¬E",
-            EM: "EM",
-            HYP: "Hip"
+            ANDE1: "[∧e₁]",
+            ANDE2: "[∧e₂]",
+            ANDI: "[∧i]",
+            ORI1: "[∨i₁]",
+            ORI2: "[∨i₂]",
+            ORE: "[∨e]",
+            TOI: "[→i]",
+            TOE: "[→e]",
+            FE: "[⊥e]",
+            FI: "[⊥i]",
+            NOTI: "[¬i]",
+            DNE: "[¬¬e]",
+            DNI: "[¬¬i]",
+            EM: "[LTE]",
+            HYP: ""
         }
         return rule_names.get(rule, f"R{rule}")
 
 
 class InitialScreen(QWidget):
-    """Tela inicial para entrada de teorema e hipóteses"""
+    """Tela inicial para entrada de teorema e premissas"""
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -329,7 +330,7 @@ class InitialScreen(QWidget):
         layout.addWidget(title)
         
         # Instruções
-        instructions = QLabel("Digite a fórmula a ser provada e as hipóteses (opcionais)")
+        instructions = QLabel("Digite a fórmula a ser provada e as premissas (opcionais)")
         instructions.setStyleSheet("font-size: 12px; color: #666;")
         instructions.setAlignment(Qt.AlignCenter)
         layout.addWidget(instructions)
@@ -349,12 +350,12 @@ class InitialScreen(QWidget):
         symbols_hint.setStyleSheet("font-size: 10px; color: #888; font-style: italic;")
         layout.addWidget(symbols_hint)
         
-        # Área de hipóteses
-        hypothesis_label = QLabel("Hipóteses:")
+        # Área de premissas
+        hypothesis_label = QLabel("Premissas:")
         hypothesis_label.setStyleSheet("font-weight: bold; margin-top: 20px;")
         layout.addWidget(hypothesis_label)
         
-        # Container com scroll para hipóteses
+        # Container com scroll para premissas
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setMinimumHeight(150)
@@ -368,11 +369,11 @@ class InitialScreen(QWidget):
         scroll_area.setWidget(self.hypothesis_container)
         layout.addWidget(scroll_area)
         
-        # Adiciona a primeira caixa de hipótese
+        # Adiciona a primeira caixa de premissa
         self.add_hypothesis_input()
         
-        # Botão para adicionar mais hipóteses
-        add_hyp_btn = QPushButton("+ Adicionar Hipótese")
+        # Botão para adicionar mais premissas
+        add_hyp_btn = QPushButton("+ Adicionar Premissa")
         add_hyp_btn.clicked.connect(self.add_hypothesis_input)
         add_hyp_btn.setStyleSheet("""
             QPushButton {
@@ -437,20 +438,20 @@ class InitialScreen(QWidget):
         self.setLayout(layout)
     
     def add_hypothesis_input(self):
-        """Adiciona um novo campo de entrada de hipótese"""
+        """Adiciona um novo campo de entrada de premissa"""
         hyp_input = QLineEdit()
-        hyp_input.setPlaceholderText(f"Hipótese {len(self.hypothesis_inputs) + 1}")
+        hyp_input.setPlaceholderText(f"Premissa {len(self.hypothesis_inputs) + 1}")
         hyp_input.setStyleSheet("padding: 8px; font-size: 14px;")
         
         self.hypothesis_layout.addWidget(hyp_input)
         self.hypothesis_inputs.append(hyp_input)
     
     def clear_all(self):
-        """Limpa o teorema e remove todas as hipóteses extras"""
+        """Limpa o teorema e remove todas as premissas extras"""
         # Limpa o campo do teorema
         self.theorem_input.clear()
         
-        # Remove todos os campos de hipótese
+        # Remove todos os campos de premissa
         while self.hypothesis_layout.count():
             item = self.hypothesis_layout.takeAt(0)
             if item.widget():
@@ -459,7 +460,7 @@ class InitialScreen(QWidget):
         # Limpa a lista
         self.hypothesis_inputs.clear()
         
-        # Adiciona uma nova hipótese vazia
+        # Adiciona uma nova premissa vazia
         self.add_hypothesis_input()
     
     def start_proof(self):
@@ -476,7 +477,7 @@ class InitialScreen(QWidget):
             QMessageBox.warning(self, "Erro na Fórmula", f"Erro no teorema:\n{str(e)}")
             return
         
-        # Valida hipóteses
+        # Valida premissas
         hypotheses = []
         for i, hyp_input in enumerate(self.hypothesis_inputs):
             hyp_text = hyp_input.text().strip()
@@ -486,7 +487,7 @@ class InitialScreen(QWidget):
                     hypotheses.append(hyp)
                 except FormulaSyntaxError as e:
                     QMessageBox.warning(self, "Erro na Fórmula", 
-                                       f"Erro na hipótese {i+1}:\n{str(e)}")
+                                       f"Erro na premissa {i+1}:\n{str(e)}")
                     return
         
         # Cria a árvore de prova
@@ -518,7 +519,7 @@ class ProofScreen(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Barra superior com hipóteses
+        # Barra superior com premissas
         hyp_scroll = QScrollArea()
         hyp_scroll.setMaximumHeight(60)
         hyp_scroll.setWidgetResizable(True)
@@ -590,19 +591,20 @@ class ProofScreen(QWidget):
     def create_rule_buttons(self):
         """Cria os botões de regras de dedução"""
         rules = [
-            ("∧E₁ (And Elim Esq)", ANDE1),
-            ("∧E₂ (And Elim Dir)", ANDE2),
-            ("∧I (And Intro)", ANDI),
-            ("∨I₁ (Or Intro Esq)", ORI1),
-            ("∨I₂ (Or Intro Dir)", ORI2),
-            ("∨E (Or Elim)", ORE),
-            ("→I (Imply Intro)", TOI),
-            ("→E (Modus Ponens)", TOE),
-            ("⊥E (False Elim)", FE),
-            ("⊥I (False Intro)", FI),
-            ("¬I (Not Intro)", NOTI),
-            ("¬¬E (Double Not)", DNE),
-            ("EM (Exc. Médio)", EM),
+            ("∧i (Intro. Conjunção)", ANDI),
+            ("∧e₁ (Elim. Conj. 1)", ANDE1),
+            ("∧e₂ (Elim. Conj. 2)", ANDE2),
+            ("∨i₁ (Intro. Disj. 1)", ORI1),
+            ("∨i₂ (Intro. Disj. 2)", ORI2),
+            ("∨e (Elim. Disjunção)", ORE),
+            ("→e (Elim. Implicação)", TOE),
+            ("→i (Intro. Implicação)", TOI),
+            ("¬i (Intro. Negação)", NOTI),
+            ("⊥i (Intro. Contradição)", FI),
+            ("⊥e (Elim. Contradição)", FE),
+            ("¬¬i (Intro. Dupla Negação)", DNI),
+            ("¬¬e (Elim. Dupla Negação)", DNE),
+            ("LTE (Terceiro Excluído)", EM),
         ]
         
         for rule_name, rule_const in rules:
@@ -626,8 +628,8 @@ class ProofScreen(QWidget):
         self.rules_layout.addStretch()
     
     def update_hypotheses_bar(self):
-        """Atualiza a barra de hipóteses baseada no nodo em foco"""
-        # Limpa hipóteses antigas
+        """Atualiza a barra de premissas baseada no nodo em foco"""
+        # Limpa premissas antigas
         while self.hyp_layout.count():
             item = self.hyp_layout.takeAt(0)
             if item.widget():
@@ -636,7 +638,7 @@ class ProofScreen(QWidget):
         if not self.tree:
             return
         
-        # Obtém hipóteses do nodo em foco
+        # Obtém premissas do nodo em foco
         hypotheses = self.tree.get_hypotheses(self.tree.focus_node)
         
         for i, hyp in enumerate(hypotheses):
@@ -866,7 +868,7 @@ class ProofScreen(QWidget):
             QMessageBox.warning(self, "Erro", f"Fórmula inválida:\n{str(e)}")
     
     def apply_hypothesis(self, hyp_index):
-        """Aplica uma hipótese ao nodo em foco"""
+        """Aplica uma premissa ao nodo em foco"""
         if not self.tree or not self.tree.ongoing:
             return
         
